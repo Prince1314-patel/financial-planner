@@ -129,11 +129,26 @@ def create_risk_return_chart(allocations: Dict[str, float]) -> go.Figure:
     return fig
 
 def display_metrics_table(metrics: Dict[str, float]) -> None:
-    """Display financial metrics in a formatted table.
+    """Display financial metrics in a formatted table with dynamic updates.
     
     Args:
         metrics: Dictionary of financial metrics
     """
+    if not metrics:
+        return
+        
+    # Initialize metrics in session state if not exists
+    if 'current_metrics' not in st.session_state:
+        st.session_state.current_metrics = metrics.copy()
+    else:
+        # Update metrics with smooth transitions
+        for key in metrics:
+            if key in st.session_state.current_metrics:
+                current = st.session_state.current_metrics[key]
+                target = metrics[key]
+                st.session_state.current_metrics[key] = target
+                
+    display_metrics = st.session_state.current_metrics
     st.markdown("""
         <style>
         .metric-container {
@@ -168,13 +183,13 @@ def display_metrics_table(metrics: Dict[str, float]) -> None:
     with col1:
         st.metric(
             'Monthly Investment Capacity',
-            format_currency(metrics.get('investment_capacity', 0)),
+            format_currency(display_metrics.get('investment_capacity', 0)),
             delta=None,
             help="Amount you can invest monthly after expenses"
         )
         st.metric(
             'Debt-to-Income Ratio',
-            format_percentage(metrics.get('debt_to_income', 0)),
+            format_percentage(display_metrics.get('debt_to_income', 0)),
             delta=None,
             help="Total monthly debt payments divided by monthly income"
         )
@@ -182,13 +197,13 @@ def display_metrics_table(metrics: Dict[str, float]) -> None:
     with col2:
         st.metric(
             'Emergency Fund Status',
-            format_currency(metrics.get('emergency_fund', 0)),
+            format_currency(display_metrics.get('emergency_fund', 0)),
             delta=None,
             help="Recommended emergency fund based on your expenses"
         )
         st.metric(
             'Risk Score',
-            f"{metrics.get('risk_score', 0)}/10",
+            f"{display_metrics.get('risk_score', 0)}/10",
             delta=None,
             help="Your risk tolerance score based on profile"
         )
