@@ -5,6 +5,4 @@ plotly
 pydantic
 fpdf
 Pillow
-pdfkit
-langchain-groq
 seaborn

@@ -269,6 +269,8 @@ def display_recommendation_bullets(bullets: List[str]) -> None:
 def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
                        allocations: Dict[str, float], bullets: List[str]) -> bytes:
     """Generate a PDF report of the financial analysis."""
+    from fpdf import FPDF
+    
     # Save charts as images
     plt.style.use('default')  # Use default style instead of dark_background for PDF
     
@@ -283,9 +285,7 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     plt.savefig(allocation_img, format='png', bbox_inches='tight', dpi=300, 
                 facecolor='white', edgecolor='none')
     plt.close()
-    
-    # Convert to base64
-    allocation_img_b64 = base64.b64encode(allocation_img.getvalue()).decode()
+    allocation_img.seek(0)
     
     # Risk vs Return Chart
     plt.figure(figsize=(10, 8))
@@ -316,95 +316,69 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     plt.savefig(risk_return_img, format='png', bbox_inches='tight', dpi=300,
                 facecolor='white', edgecolor='none')
     plt.close()
+    risk_return_img.seek(0)
     
-    # Convert to base64
-    risk_return_img_b64 = base64.b64encode(risk_return_img.getvalue()).decode()
+    # Create PDF
+    pdf = FPDF()
+    pdf.add_page()
     
-    # Generate HTML content
-    html_content = f"""
-    <html>
-    <head>
-        <style>
-            body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
-            .container {{ max-width: 800px; margin: 0 auto; padding: 20px; }}
-            .section {{ margin-bottom: 30px; }}
-            table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-            th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-            th {{ background-color: #f5f5f5; }}
-            .chart {{ text-align: center; margin: 20px 0; }}
-            .chart img {{ max-width: 100%; height: auto; }}
-            .recommendations li {{ margin-bottom: 10px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Your Financial Analysis Report</h1>
-            
-            <div class="section">
-                <h2>Personal Information</h2>
-                <table>
-                    <tr><th>Age</th><td>{user_input.get('age', 'N/A')}</td></tr>
-                    <tr><th>Monthly Income</th><td>{format_currency(user_input.get('salary', 0))}</td></tr>
-                    <tr><th>Monthly Expenses</th><td>{format_currency(user_input.get('expenses', 0))}</td></tr>
-                    <tr><th>Risk Tolerance</th><td>{user_input.get('risk_tolerance', 'N/A')}</td></tr>
-                    <tr><th>Time Horizon</th><td>{user_input.get('time_horizon', 'N/A')}</td></tr>
-                </table>
-            </div>
-            
-            <div class="section">
-                <h2>Financial Metrics</h2>
-                <table>
-                    <tr><th>Monthly Investment Capacity</th><td>{format_currency(metrics.get('investment_capacity', 0))}</td></tr>
-                    <tr><th>Emergency Fund Status</th><td>{format_currency(metrics.get('emergency_fund', 0))}</td></tr>
-                    <tr><th>Debt-to-Income Ratio</th><td>{format_percentage(metrics.get('debt_to_income', 0))}</td></tr>
-                    <tr><th>Risk Score</th><td>{metrics.get('risk_score', 0)}/10</td></tr>
-                </table>
-            </div>
-            
-            <div class="section">
-                <h2>Portfolio Allocation</h2>
-                <div class="chart">
-                    <img src="data:image/png;base64,{allocation_img_b64}" 
-                         alt="Portfolio Allocation" 
-                         style="max-width: 100%; height: auto;">
-                </div>
-            </div>
-            
-            <div class="section">
-                <h2>Risk vs Return Profile</h2>
-                <div class="chart">
-                    <img src="data:image/png;base64,{risk_return_img_b64}" 
-                         alt="Risk vs Return Profile" 
-                         style="max-width: 100%; height: auto;">
-                </div>
-            </div>
-            
-            <div class="section">
-                <h2>Investment Recommendations</h2>
-                <ul class="recommendations">
-                    {''.join(f'<li>{bullet}</li>' for bullet in bullets)}
-                </ul>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+    # Set font
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'Your Financial Analysis Report', 0, 1, 'C')
+    pdf.ln(10)
     
-    # Convert HTML to PDF using pdfkit
-    options = {
-        'page-size': 'A4',
-        'margin-top': '0.75in',
-        'margin-right': '0.75in',
-        'margin-bottom': '0.75in',
-        'margin-left': '0.75in',
-        'encoding': 'UTF-8',
-        'no-outline': None,
-        'enable-local-file-access': None
-    }
+    # Personal Information Section
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Personal Information', 0, 1, 'L')
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(60, 8, 'Age:', 0, 0)
+    pdf.cell(0, 8, str(user_input.get('age', 'N/A')), 0, 1)
+    pdf.cell(60, 8, 'Monthly Income:', 0, 0)
+    pdf.cell(0, 8, format_currency(user_input.get('salary', 0)), 0, 1)
+    pdf.cell(60, 8, 'Monthly Expenses:', 0, 0)
+    pdf.cell(0, 8, format_currency(user_input.get('expenses', 0)), 0, 1)
+    pdf.cell(60, 8, 'Risk Tolerance:', 0, 0)
+    pdf.cell(0, 8, str(user_input.get('risk_tolerance', 'N/A')), 0, 1)
+    pdf.cell(60, 8, 'Time Horizon:', 0, 0)
+    pdf.cell(0, 8, str(user_input.get('time_horizon', 'N/A')), 0, 1)
+    pdf.ln(10)
+    
+    # Financial Metrics Section
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Financial Metrics', 0, 1, 'L')
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(60, 8, 'Investment Capacity:', 0, 0)
+    pdf.cell(0, 8, format_currency(metrics.get('investment_capacity', 0)), 0, 1)
+    pdf.cell(60, 8, 'Emergency Fund:', 0, 0)
+    pdf.cell(0, 8, format_currency(metrics.get('emergency_fund', 0)), 0, 1)
+    pdf.cell(60, 8, 'Debt-to-Income:', 0, 0)
+    pdf.cell(0, 8, format_percentage(metrics.get('debt_to_income', 0)), 0, 1)
+    pdf.cell(60, 8, 'Risk Score:', 0, 0)
+    pdf.cell(0, 8, f"{metrics.get('risk_score', 0)}/10", 0, 1)
+    pdf.ln(10)
+    
+    # Portfolio Allocation Chart
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Portfolio Allocation', 0, 1, 'L')
+    pdf.image(allocation_img, x=10, w=190)
+    pdf.ln(10)
+    
+    # Risk vs Return Chart
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Risk vs Return Profile', 0, 1, 'L')
+    pdf.image(risk_return_img, x=10, w=190)
+    pdf.ln(10)
+    
+    # Investment Recommendations
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Investment Recommendations', 0, 1, 'L')
+    pdf.set_font('Arial', '', 12)
+    for bullet in bullets:
+        pdf.multi_cell(0, 8, f"• {bullet}", 0, 'L')
     
     try:
-        pdf_content = pdfkit.from_string(html_content, False, options=options)
-        return pdf_content
+        return pdf.output(dest='S').encode('latin1')
     except Exception as e:
         st.error(f"Error generating PDF: {str(e)}")
         return None
