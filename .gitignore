@@ -1,0 +1,9 @@
+.secrets/
+__pycache__/
+*.pyc
+.env
+.env.*
+*.sqlite3
+*.db
+.cache/
+*.log

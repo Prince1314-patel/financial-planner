@@ -1,0 +1,10 @@
+streamlit
+langchain-groq
+matplotlib
+plotly
+pydantic
+fpdf
+Pillow
+pdfkit
+langchain-groq
+seaborn
