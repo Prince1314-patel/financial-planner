@@ -8,6 +8,7 @@ import pdfkit
 import base64
 from typing import Dict, List, Any
 from backend.utils.formatters import format_currency, format_percentage
+import tempfile
 
 def create_allocation_chart(allocations: Dict[str, float]) -> go.Figure:
     """Create a pie chart showing portfolio allocation.
@@ -295,12 +296,12 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     plt.pie(allocations.values(), labels=allocations.keys(), autopct='%1.1f%%', colors=colors)
     plt.title('Portfolio Allocation', pad=20, size=16)
     
-    # Save to BytesIO
-    allocation_img = io.BytesIO()
-    plt.savefig(allocation_img, format='png', bbox_inches='tight', dpi=300, 
-                facecolor='white', edgecolor='none')
+    # Save to temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_alloc:
+        plt.savefig(tmp_alloc.name, format='png', bbox_inches='tight', dpi=300, 
+                    facecolor='white', edgecolor='none')
+        allocation_img_path = tmp_alloc.name
     plt.close()
-    allocation_img.seek(0)
     
     # Risk vs Return Chart
     plt.figure(figsize=(10, 8))
@@ -313,9 +314,8 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
         'Fixed Deposits': (2, 4)
     }
     
-    # Plot all assets with minimum size for non-allocated ones
     for i, (asset, (risk, ret)) in enumerate(risk_return_data.items()):
-        size = max(allocations.get(asset, 0) * 1000, 200)  # Minimum size of 200 for visibility
+        size = max(allocations.get(asset, 0) * 1000, 200)
         plt.scatter(risk, ret, s=size, label=asset, color=colors[i % len(colors)],
                    alpha=0.7 if asset in allocations else 0.4)
         plt.annotate(asset, (risk, ret), xytext=(5, 5), textcoords='offset points')
@@ -326,12 +326,12 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     
-    # Save to BytesIO
-    risk_return_img = io.BytesIO()
-    plt.savefig(risk_return_img, format='png', bbox_inches='tight', dpi=300,
-                facecolor='white', edgecolor='none')
+    # Save to temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_risk:
+        plt.savefig(tmp_risk.name, format='png', bbox_inches='tight', dpi=300,
+                    facecolor='white', edgecolor='none')
+        risk_return_img_path = tmp_risk.name
     plt.close()
-    risk_return_img.seek(0)
     
     # Create PDF
     pdf = FPDF()
@@ -375,14 +375,14 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     # Portfolio Allocation Chart
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(0, 10, 'Portfolio Allocation', 0, 1, 'L')
-    pdf.image(allocation_img, x=10, w=190)
+    pdf.image(allocation_img_path, x=10, w=190)
     pdf.ln(10)
     
     # Risk vs Return Chart
     pdf.add_page()
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(0, 10, 'Risk vs Return Profile', 0, 1, 'L')
-    pdf.image(risk_return_img, x=10, w=190)
+    pdf.image(risk_return_img_path, x=10, w=190)
     pdf.ln(10)
     
     # Investment Recommendations
