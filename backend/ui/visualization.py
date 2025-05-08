@@ -286,66 +286,73 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
                        allocations: Dict[str, float], bullets: List[str]) -> bytes:
     """Generate a PDF report of the financial analysis."""
     from fpdf import FPDF
-    
-    # Save charts as images
-    plt.style.use('default')  # Use default style instead of dark_background for PDF
-    
-    # Portfolio Allocation Chart
-    plt.figure(figsize=(10, 8))
-    colors = ['#4B56D2', '#82C3EC', '#47B5FF', '#256D85', '#06283D', '#1363DF']
-    plt.pie(allocations.values(), labels=allocations.keys(), autopct='%1.1f%%', colors=colors)
-    plt.title('Portfolio Allocation', pad=20, size=16)
-    
-    # Save to temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_alloc:
-        plt.savefig(tmp_alloc.name, format='png', bbox_inches='tight', dpi=300, 
-                    facecolor='white', edgecolor='none')
-        allocation_img_path = tmp_alloc.name
-    plt.close()
-    
-    # Risk vs Return Chart
-    plt.figure(figsize=(10, 8))
-    risk_return_data = {
-        'Stocks': (20, 12),
-        'Bonds': (5, 5),
-        'Gold': (15, 8),
-        'Real Estate': (12, 9),
-        'Cash': (1, 3),
-        'Fixed Deposits': (2, 4)
-    }
-    
-    for i, (asset, (risk, ret)) in enumerate(risk_return_data.items()):
-        size = max(allocations.get(asset, 0) * 1000, 200)
-        plt.scatter(risk, ret, s=size, label=asset, color=colors[i % len(colors)],
-                   alpha=0.7 if asset in allocations else 0.4)
-        plt.annotate(asset, (risk, ret), xytext=(5, 5), textcoords='offset points')
-    
-    plt.xlabel('Risk (%)')
-    plt.ylabel('Expected Return (%)')
-    plt.title('Risk vs Return Profile', pad=20, size=16)
-    plt.grid(True, alpha=0.3)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    
-    # Save to temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_risk:
-        plt.savefig(tmp_risk.name, format='png', bbox_inches='tight', dpi=300,
-                    facecolor='white', edgecolor='none')
-        risk_return_img_path = tmp_risk.name
-    plt.close()
-    
-    # Create PDF
+    import os
+    import tempfile
+    # Use NotoSans-Regular as the Unicode font
+    font_path = os.path.join(os.path.dirname(__file__), "NotoSans-Regular.ttf")
+    if not os.path.exists(font_path):
+        # Download NotoSans-Regular if not present (one-time)
+        import urllib.request
+        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf"
+        try:
+            urllib.request.urlretrieve(url, font_path)
+        except Exception as e:
+            st.error(f"Could not download NotoSans-Regular.ttf font. Please manually place the font file in the directory: {os.path.dirname(__file__)}. Error: {str(e)}")
+            return b""
+    # Generate and save allocation and risk-return charts as images
+    allocation_fig = create_allocation_chart(allocations)
+    risk_return_fig = create_risk_return_chart(allocations)
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as alloc_tmp, tempfile.NamedTemporaryFile(suffix='.png', delete=False) as risk_tmp:
+        allocation_img_path = alloc_tmp.name
+        risk_return_img_path = risk_tmp.name
+        
+        # Convert Plotly figures to matplotlib and save
+        # Allocation chart
+        plt.figure(figsize=(10, 7.5))
+        plt.pie(list(allocations.values()), labels=list(allocations.keys()), 
+                colors=['#4B56D2', '#82C3EC', '#47B5FF', '#256D85', '#06283D', '#1363DF'],
+                autopct='%1.1f%%', startangle=90)
+        plt.title('Recommended Portfolio Allocation', pad=20, color='white', fontsize=16)
+        plt.axis('equal')
+        plt.savefig(allocation_img_path, dpi=300, bbox_inches='tight', transparent=True)
+        plt.close()
+        
+        # Risk-Return chart
+        risk_return_data = {
+            'Stocks': {'risk': 20, 'return': 12},
+            'Bonds': {'risk': 5, 'return': 5},
+            'Gold': {'risk': 15, 'return': 8},
+            'Real Estate': {'risk': 12, 'return': 9},
+            'Cash': {'risk': 1, 'return': 3},
+            'Fixed Deposits': {'risk': 2, 'return': 4},
+        }
+        
+        plt.figure(figsize=(10, 7.5))
+        for i, (asset, data) in enumerate(risk_return_data.items()):
+            size = max(allocations.get(asset, 0) * 1000, 200)
+            plt.scatter(data['risk'], data['return'], s=size, 
+                       color=['#4B56D2', '#82C3EC', '#47B5FF', '#256D85', '#06283D', '#1363DF'][i],
+                       alpha=1.0 if allocations.get(asset, 0) > 0 else 0.4,
+                       label=asset)
+            plt.annotate(asset, (data['risk'], data['return']), 
+                        xytext=(0, 10), textcoords='offset points', ha='center')
+        
+        plt.title('Risk vs Return Profile', pad=20, color='white', fontsize=16)
+        plt.xlabel('Risk (%)', color='white')
+        plt.ylabel('Expected Return (%)', color='white')
+        plt.grid(True, alpha=0.1)
+        plt.legend()
+        plt.savefig(risk_return_img_path, dpi=300, bbox_inches='tight', transparent=True)
+        plt.close()
     pdf = FPDF()
     pdf.add_page()
-    
-    # Set font
-    pdf.set_font('Arial', 'B', 16)
+    pdf.add_font('NotoSans', '', font_path, uni=True)
+    pdf.set_font('NotoSans', '', 16)
     pdf.cell(0, 10, 'Your Financial Analysis Report', 0, 1, 'C')
     pdf.ln(10)
-    
-    # Personal Information Section
-    pdf.set_font('Arial', 'B', 14)
+    pdf.set_font('NotoSans', '', 14)
     pdf.cell(0, 10, 'Personal Information', 0, 1, 'L')
-    pdf.set_font('Arial', '', 12)
+    pdf.set_font('NotoSans', '', 12)
     pdf.cell(60, 8, 'Age:', 0, 0)
     pdf.cell(0, 8, str(user_input.get('age', 'N/A')), 0, 1)
     pdf.cell(60, 8, 'Monthly Income:', 0, 0)
@@ -357,11 +364,9 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     pdf.cell(60, 8, 'Time Horizon:', 0, 0)
     pdf.cell(0, 8, str(user_input.get('time_horizon', 'N/A')), 0, 1)
     pdf.ln(10)
-    
-    # Financial Metrics Section
-    pdf.set_font('Arial', 'B', 14)
+    pdf.set_font('NotoSans', '', 14)
     pdf.cell(0, 10, 'Financial Metrics', 0, 1, 'L')
-    pdf.set_font('Arial', '', 12)
+    pdf.set_font('NotoSans', '', 12)
     pdf.cell(60, 8, 'Investment Capacity:', 0, 0)
     pdf.cell(0, 8, format_currency(metrics.get('investment_capacity', 0)), 0, 1)
     pdf.cell(60, 8, 'Emergency Fund:', 0, 0)
@@ -371,29 +376,22 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
     pdf.cell(60, 8, 'Risk Score:', 0, 0)
     pdf.cell(0, 8, f"{metrics.get('risk_score', 0)}/10", 0, 1)
     pdf.ln(10)
-    
-    # Portfolio Allocation Chart
-    pdf.set_font('Arial', 'B', 14)
+    pdf.set_font('NotoSans', '', 14)
     pdf.cell(0, 10, 'Portfolio Allocation', 0, 1, 'L')
     pdf.image(allocation_img_path, x=10, w=190)
     pdf.ln(10)
-    
-    # Risk vs Return Chart
     pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
+    pdf.set_font('NotoSans', '', 14)
     pdf.cell(0, 10, 'Risk vs Return Profile', 0, 1, 'L')
     pdf.image(risk_return_img_path, x=10, w=190)
     pdf.ln(10)
-    
-    # Investment Recommendations
-    pdf.set_font('Arial', 'B', 14)
+    pdf.set_font('NotoSans', '', 14)
     pdf.cell(0, 10, 'Investment Recommendations', 0, 1, 'L')
-    pdf.set_font('Arial', '', 12)
+    pdf.set_font('NotoSans', '', 12)
     for bullet in bullets:
         pdf.multi_cell(0, 8, f"• {bullet}", 0, 'L')
-    
     try:
-        return pdf.output(dest='S').encode('latin1')
+        return pdf.output(dest='S').encode('utf-8')
     except Exception as e:
         st.error(f"Error generating PDF: {str(e)}")
-        return None
+        return b""
