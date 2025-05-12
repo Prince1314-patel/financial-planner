@@ -6,6 +6,7 @@ import numpy as np
 import io
 import pdfkit
 import base64
+import pandas as pd
 from typing import Dict, List, Any
 from backend.utils.formatters import format_currency, format_percentage
 import tempfile
@@ -196,11 +197,21 @@ def display_metrics_table(metrics: Dict[str, float]) -> None:
         )
     
     with col2:
+        current_emergency_fund = display_metrics.get('emergency_fund', 0)
+        target_emergency_fund = display_metrics.get('target_emergency_fund', current_emergency_fund * 6)  # 6 months of expenses
+        monthly_allocation = (target_emergency_fund - current_emergency_fund) * 0.1  # 10% monthly contribution
+        
         st.metric(
             'Emergency Fund Status',
-            format_currency(display_metrics.get('emergency_fund', 0)),
+            format_currency(current_emergency_fund),
+            delta=f"Target: {format_currency(target_emergency_fund)}",
+            help="Current emergency fund vs target (6 months of expenses)"
+        )
+        st.metric(
+            'Monthly Emergency Fund Allocation',
+            format_currency(monthly_allocation),
             delta=None,
-            help="Recommended emergency fund based on your expenses"
+            help="Recommended monthly contribution to emergency fund"
         )
         st.metric(
             'Risk Score',
@@ -246,6 +257,31 @@ def display_allocation_table(table_data: List[Dict[str, str]]) -> None:
     st.table(table_data)
     st.markdown("</div>", unsafe_allow_html=True)
 
+def display_download_buttons(user_input: Dict[str, Any], metrics: Dict[str, float],
+                         allocations: Dict[str, float], bullets: List[str]) -> None:
+    """Display download buttons for PDF and Excel reports."""
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        pdf_report = generate_report_pdf(user_input, metrics, allocations, bullets)
+        st.download_button(
+            label="📄 Download PDF Report",
+            data=pdf_report,
+            file_name="financial_analysis_report.pdf",
+            mime="application/pdf",
+            help="Download a comprehensive PDF report of your financial analysis"
+        )
+    
+    with col2:
+        excel_report = generate_excel_report(user_input, metrics, allocations, bullets)
+        st.download_button(
+            label="📊 Download Excel Report",
+            data=excel_report,
+            file_name="financial_analysis_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="Download detailed financial data in Excel format"
+        )
+
 def display_recommendation_bullets(bullets: List[str]) -> None:
     """Display AI recommendations as bullet points.
     
@@ -281,6 +317,82 @@ def display_recommendation_bullets(bullets: List[str]) -> None:
         st.markdown(f'<div class="recommendation-bullet">🎯 {i}. {bullet}</div>', unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
+
+def generate_excel_report(user_input: Dict[str, Any], metrics: Dict[str, float],
+                         allocations: Dict[str, float], bullets: List[str]) -> bytes:
+    """Generate an Excel report with all numerical data from the financial analysis."""
+    # Create a BytesIO object to store the Excel file
+    excel_buffer = io.BytesIO()
+    
+    # Create an Excel writer object
+    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+        # Personal Information
+        personal_info = pd.DataFrame({
+            'Metric': ['Age', 'Monthly Income', 'Monthly Expenses', 'Risk Tolerance', 'Time Horizon'],
+            'Value': [
+                user_input.get('age', 'N/A'),
+                format_currency(user_input.get('salary', 0)),
+                format_currency(user_input.get('expenses', 0)),
+                user_input.get('risk_tolerance', 'N/A'),
+                user_input.get('time_horizon', 'N/A')
+            ]
+        })
+        personal_info.to_excel(writer, sheet_name='Personal Information', index=False)
+        
+        # Financial Metrics
+        financial_metrics = pd.DataFrame({
+            'Metric': ['Investment Capacity', 'Emergency Fund', 'Target Emergency Fund',
+                      'Monthly Emergency Fund Allocation', 'Debt-to-Income Ratio', 'Risk Score'],
+            'Value': [
+                format_currency(metrics.get('investment_capacity', 0)),
+                format_currency(metrics.get('emergency_fund', 0)),
+                format_currency(metrics.get('target_emergency_fund', metrics.get('emergency_fund', 0) * 6)),
+                format_currency((metrics.get('target_emergency_fund', metrics.get('emergency_fund', 0) * 6) - 
+                               metrics.get('emergency_fund', 0)) * 0.1),
+                format_percentage(metrics.get('debt_to_income', 0)),
+                f"{metrics.get('risk_score', 0)}/10"
+            ]
+        })
+        financial_metrics.to_excel(writer, sheet_name='Financial Metrics', index=False)
+        
+        # Portfolio Allocation
+        portfolio_data = pd.DataFrame({
+            'Asset Class': list(allocations.keys()),
+            'Allocation (%)': [f"{value * 100:.1f}%" for value in allocations.values()]
+        })
+        portfolio_data.to_excel(writer, sheet_name='Portfolio Allocation', index=False)
+        
+        # Risk-Return Data
+        risk_return_data = {
+            'Stocks': {'risk': 20, 'return': 12},
+            'Bonds': {'risk': 5, 'return': 5},
+            'Gold': {'risk': 15, 'return': 8},
+            'Real Estate': {'risk': 12, 'return': 9},
+            'Cash': {'risk': 1, 'return': 3},
+            'Fixed Deposits': {'risk': 2, 'return': 4},
+        }
+        risk_return_df = pd.DataFrame([
+            {'Asset': asset, 'Risk (%)': data['risk'], 'Return (%)': data['return']}
+            for asset, data in risk_return_data.items()
+        ])
+        risk_return_df.to_excel(writer, sheet_name='Risk-Return Profile', index=False)
+        
+        # Recommendations
+        recommendations = pd.DataFrame({
+            'Recommendation': bullets
+        })
+        recommendations.to_excel(writer, sheet_name='Recommendations', index=False)
+        
+        # Auto-adjust columns width
+        for sheet_name in writer.sheets:
+            worksheet = writer.sheets[sheet_name]
+            for idx, col in enumerate(worksheet.get_cols()):
+                max_length = max(len(str(cell.value)) for cell in col)
+                worksheet.set_column(idx, idx, max_length + 2)
+    
+    # Get the value of the BytesIO buffer
+    excel_buffer.seek(0)
+    return excel_buffer.getvalue()
 
 def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
                        allocations: Dict[str, float], bullets: List[str]) -> bytes:
