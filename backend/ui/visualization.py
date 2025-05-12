@@ -407,123 +407,79 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
             
             # Get font path
             font_path = 'backend/ui/NotoSans-Regular.ttf'
-    # Generate and save allocation and risk-return charts as images
-    allocation_fig = create_allocation_chart(allocations)
-    risk_return_fig = create_risk_return_chart(allocations)
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as alloc_tmp, tempfile.NamedTemporaryFile(suffix='.png', delete=False) as risk_tmp:
-        allocation_img_path = alloc_tmp.name
-        risk_return_img_path = risk_tmp.name
-        
-        # Convert Plotly figures to matplotlib and save
-        # Allocation chart
-        plt.figure(figsize=(10, 7.5), facecolor='white')
-        plt.pie(list(allocations.values()), labels=list(allocations.keys()), 
-                colors=['#4B56D2', '#82C3EC', '#47B5FF', '#256D85', '#06283D', '#1363DF'],
-                autopct='%1.1f%%', startangle=90, textprops={'color': 'black'})
-        plt.title('Recommended Portfolio Allocation', pad=20, color='black', fontsize=16)
-        plt.axis('equal')
-        plt.savefig(allocation_img_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
-        plt.close()
-        
-        # Risk-Return chart
-        risk_return_data = {
-            'Stocks': {'risk': 20, 'return': 12},
-            'Bonds': {'risk': 5, 'return': 5},
-            'Gold': {'risk': 15, 'return': 8},
-            'Real Estate': {'risk': 12, 'return': 9},
-            'Cash': {'risk': 1, 'return': 3},
-            'Fixed Deposits': {'risk': 2, 'return': 4},
-        }
-        
-        plt.figure(figsize=(10, 7.5), facecolor='white')
-        for i, (asset, data) in enumerate(risk_return_data.items()):
-            size = max(allocations.get(asset, 0) * 1000, 200)
-            plt.scatter(data['risk'], data['return'], s=size, 
-                       color=['#4B56D2', '#82C3EC', '#47B5FF', '#256D85', '#06283D', '#1363DF'][i],
-                       alpha=1.0 if allocations.get(asset, 0) > 0 else 0.4,
-                       label=asset)
-            plt.annotate(asset, (data['risk'], data['return']), 
-                        xytext=(0, 10), textcoords='offset points', ha='center', color='black')
-        
-        plt.title('Risk vs Return Profile', pad=20, color='black', fontsize=16)
-        plt.xlabel('Risk (%)', color='black')
-        plt.ylabel('Expected Return (%)', color='black')
-        plt.grid(True, alpha=0.3)
-        plt.legend()
-        plt.savefig(risk_return_img_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
-        plt.close()
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.add_font('NotoSans', '', font_path, uni=True)
-    
-    # Set default text color to black
-    pdf.set_text_color(0, 0, 0)
-    
-    # Header
-    pdf.set_font('NotoSans', '', 20)
-    pdf.cell(0, 15, 'Your Financial Analysis Report', 0, 1, 'C')
-    pdf.ln(5)
-    
-    # Personal Information Section
-    pdf.set_font('NotoSans', '', 16)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, 'Personal Information', 0, 1, 'L', fill=True)
-    pdf.ln(5)
-    
-    pdf.set_font('NotoSans', '', 12)
-    # Create a function for consistent formatting
-    def add_info_row(label, value):
-        pdf.set_font('NotoSans', '', 12)
-        pdf.cell(60, 8, label, 0, 0)
-        pdf.cell(0, 8, str(value), 0, 1)
-    
-    add_info_row('Age:', user_input.get('age', 'N/A'))
-    add_info_row('Monthly Income:', format_currency(user_input.get('salary', 0)))
-    add_info_row('Monthly Expenses:', format_currency(user_input.get('expenses', 0)))
-    add_info_row('Risk Tolerance:', user_input.get('risk_tolerance', 'N/A'))
-    add_info_row('Time Horizon:', user_input.get('time_horizon', 'N/A'))
-    pdf.ln(5)
-    
-    # Financial Metrics Section
-    pdf.set_font('NotoSans', '', 16)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, 'Financial Metrics', 0, 1, 'L', fill=True)
-    pdf.ln(5)
-    
-    add_info_row('Investment Capacity:', format_currency(metrics.get('investment_capacity', 0)))
-    add_info_row('Emergency Fund:', format_currency(metrics.get('emergency_fund', 0)))
-    add_info_row('Debt-to-Income:', format_percentage(metrics.get('debt_to_income', 0)))
-    add_info_row('Risk Score:', f"{metrics.get('risk_score', 0)}/10")
-    pdf.ln(5)
-    
-    # Portfolio Allocation Section
-    pdf.set_font('NotoSans', '', 16)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, 'Portfolio Allocation', 0, 1, 'L', fill=True)
-    pdf.ln(5)
-    pdf.image(allocation_img_path, x=10, w=190)
-    pdf.ln(10)
-    
-    # Risk vs Return Profile Section
-    pdf.add_page()
-    pdf.set_font('NotoSans', '', 16)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, 'Risk vs Return Profile', 0, 1, 'L', fill=True)
-    pdf.ln(5)
-    pdf.image(risk_return_img_path, x=10, w=190)
-    pdf.ln(10)
-    
-    # Investment Recommendations Section
-    pdf.set_font('NotoSans', '', 16)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, 'Investment Recommendations', 0, 1, 'L', fill=True)
-    pdf.ln(5)
-    
-    pdf.set_font('NotoSans', '', 12)
-    for bullet in bullets:
-        pdf.multi_cell(0, 8, f"• {bullet}", 0, 'L')
-    try:
-        return pdf.output(dest='S').encode('utf-8')
+            # Create PDF document
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.add_font('NotoSans', '', font_path, uni=True)
+            
+            # Set default text color to black
+            pdf.set_text_color(0, 0, 0)
+            
+            # Header
+            pdf.set_font('NotoSans', '', 20)
+            pdf.cell(0, 15, 'Your Financial Analysis Report', 0, 1, 'C')
+            pdf.ln(5)
+            
+            # Personal Information Section
+            pdf.set_font('NotoSans', '', 16)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 10, 'Personal Information', 0, 1, 'L', fill=True)
+            pdf.ln(5)
+            
+            pdf.set_font('NotoSans', '', 12)
+            # Create a function for consistent formatting
+            def add_info_row(label, value):
+                pdf.set_font('NotoSans', '', 12)
+                pdf.cell(60, 8, label, 0, 0)
+                pdf.cell(0, 8, str(value), 0, 1)
+            
+            add_info_row('Age:', user_input.get('age', 'N/A'))
+            add_info_row('Monthly Income:', format_currency(user_input.get('salary', 0)))
+            add_info_row('Monthly Expenses:', format_currency(user_input.get('expenses', 0)))
+            add_info_row('Risk Tolerance:', user_input.get('risk_tolerance', 'N/A'))
+            add_info_row('Time Horizon:', user_input.get('time_horizon', 'N/A'))
+            pdf.ln(5)
+            
+            # Financial Metrics Section
+            pdf.set_font('NotoSans', '', 16)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 10, 'Financial Metrics', 0, 1, 'L', fill=True)
+            pdf.ln(5)
+            
+            add_info_row('Investment Capacity:', format_currency(metrics.get('investment_capacity', 0)))
+            add_info_row('Emergency Fund:', format_currency(metrics.get('emergency_fund', 0)))
+            add_info_row('Debt-to-Income:', format_percentage(metrics.get('debt_to_income', 0)))
+            add_info_row('Risk Score:', f"{metrics.get('risk_score', 0)}/10")
+            pdf.ln(5)
+            
+            # Portfolio Allocation Section
+            pdf.set_font('NotoSans', '', 16)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 10, 'Portfolio Allocation', 0, 1, 'L', fill=True)
+            pdf.ln(5)
+            pdf.image(allocation_img_path, x=10, w=190)
+            pdf.ln(10)
+            
+            # Risk vs Return Profile Section
+            pdf.add_page()
+            pdf.set_font('NotoSans', '', 16)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 10, 'Risk vs Return Profile', 0, 1, 'L', fill=True)
+            pdf.ln(5)
+            pdf.image(risk_return_img_path, x=10, w=190)
+            pdf.ln(10)
+            
+            # Investment Recommendations Section
+            pdf.set_font('NotoSans', '', 16)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 10, 'Investment Recommendations', 0, 1, 'L', fill=True)
+            pdf.ln(5)
+            
+            pdf.set_font('NotoSans', '', 12)
+            for bullet in bullets:
+                pdf.multi_cell(0, 8, f"• {bullet}", 0, 'L')
+            
+            return pdf.output(dest='S').encode('utf-8')
     except Exception as e:
         st.error(f"Error generating PDF: {str(e)}")
         return b""
