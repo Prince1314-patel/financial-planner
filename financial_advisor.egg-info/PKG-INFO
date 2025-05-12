@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: financial-advisor
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fpdf>=1.7.2
+Requires-Dist: groq>=0.23.1
+Requires-Dist: langchain>=0.3.24
+Requires-Dist: langchain-groq>=0.3.2
+Requires-Dist: matplotlib>=3.10.1
+Requires-Dist: pillow>=11.2.1
+Requires-Dist: plotly>=6.0.1
+Requires-Dist: pydantic>=2.11.3
+Requires-Dist: seaborn>=0.13.2
+Requires-Dist: streamlit>=1.44.1
