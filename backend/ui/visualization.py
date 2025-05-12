@@ -258,29 +258,21 @@ def display_allocation_table(table_data: List[Dict[str, str]]) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 def display_download_buttons(user_input: Dict[str, Any], metrics: Dict[str, float],
-                         allocations: Dict[str, float], bullets: List[str]) -> None:
-    """Display download buttons for PDF and Excel reports."""
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        pdf_report = generate_report_pdf(user_input, metrics, allocations, bullets)
-        st.download_button(
-            label="📄 Download PDF Report",
-            data=pdf_report,
-            file_name="financial_analysis_report.pdf",
-            mime="application/pdf",
-            help="Download a comprehensive PDF report of your financial analysis"
-        )
-    
-    with col2:
+                           allocations: Dict[str, float], bullets: List[str]) -> None:
+    """Display download button for Excel report."""
+    try:
+        # Generate Excel report
         excel_report = generate_excel_report(user_input, metrics, allocations, bullets)
+        
         st.download_button(
             label="📊 Download Excel Report",
             data=excel_report,
-            file_name="financial_analysis_data.xlsx",
+            file_name="financial_analysis_report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Download detailed financial data in Excel format"
+            help="Download a detailed Excel spreadsheet of your financial analysis"
         )
+    except Exception as e:
+        st.error(f"Error generating report: {str(e)}")
 
 def display_recommendation_bullets(bullets: List[str]) -> None:
     """Display AI recommendations as bullet points.
@@ -398,19 +390,23 @@ def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
                        allocations: Dict[str, float], bullets: List[str]) -> bytes:
     """Generate a PDF report of the financial analysis."""
     from fpdf import FPDF
-    import os
-    import tempfile
-    # Use NotoSans-Regular as the Unicode font
-    font_path = os.path.join(os.path.dirname(__file__), "NotoSans-Regular.ttf")
-    if not os.path.exists(font_path):
-        # Download NotoSans-Regular if not present (one-time)
-        import urllib.request
-        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf"
-        try:
-            urllib.request.urlretrieve(url, font_path)
-        except Exception as e:
-            st.error(f"Could not download NotoSans-Regular.ttf font. Please manually place the font file in the directory: {os.path.dirname(__file__)}. Error: {str(e)}")
-            return b""
+    try:
+        # Create temporary files for charts
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as allocation_file, \
+             tempfile.NamedTemporaryFile(suffix='.png', delete=False) as risk_return_file:
+            
+            # Save allocation chart
+            allocation_fig = create_allocation_chart(allocations)
+            allocation_fig.write_image(allocation_file.name)
+            allocation_img_path = allocation_file.name
+            
+            # Save risk-return chart
+            risk_return_fig = create_risk_return_chart(allocations)
+            risk_return_fig.write_image(risk_return_file.name)
+            risk_return_img_path = risk_return_file.name
+            
+            # Get font path
+            font_path = 'backend/ui/NotoSans-Regular.ttf'
     # Generate and save allocation and risk-return charts as images
     allocation_fig = create_allocation_chart(allocations)
     risk_return_fig = create_risk_return_chart(allocations)
