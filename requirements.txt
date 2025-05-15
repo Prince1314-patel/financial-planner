@@ -5,4 +5,4 @@ plotly
 pydantic
 fpdf
 Pillow
-seaborn
+python-dotenv
