@@ -1,6 +1,7 @@
 import streamlit as st
-import toml
+
 import os
+import load_dotenv
 
 from backend.ui.session_state import initialize_session_state
 from backend.ui.form_navigation import get_form_steps, handle_form_navigation
@@ -14,11 +15,18 @@ from backend.ui.visualization import (
     download_excel_report
 )
 
+load_dotenv()
 # Load secrets
 def load_groq_api_key():
-    secrets_path = os.path.join(os.path.dirname(__file__), ".secrets", "secrets.toml")
-    secrets = toml.load(secrets_path)
-    return secrets["GROQ_API_KEY"]
+    """Load the GROQ API key from the .env file."""
+    # Load environment variables from .env file
+    load_dotenv()
+    
+    # Get GROQ API key
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    if not GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY not found in environment variables. Please check your .env file.")
+    return GROQ_API_KEY
 
 def main():
     st.set_page_config(page_title="AI Financial Advisor", layout="centered")
