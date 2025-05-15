@@ -1,7 +1,7 @@
 import streamlit as st
 
 import os
-import load_dotenv
+from dotenv import load_dotenv
 
 from backend.ui.session_state import initialize_session_state
 from backend.ui.form_navigation import get_form_steps, handle_form_navigation
