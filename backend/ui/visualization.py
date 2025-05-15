@@ -195,7 +195,8 @@ def display_metrics_table(metrics: Dict[str, float]) -> None:
     
     with col2:
         current_emergency_fund = display_metrics.get('emergency_fund', 0)
-        target_emergency_fund = display_metrics.get('target_emergency_fund', current_emergency_fund * 6)  # 6 months of expenses
+        monthly_expenses = display_metrics.get('monthly_expenses', 0)
+        target_emergency_fund = monthly_expenses * 6  # 6 months of expenses
         monthly_allocation = (target_emergency_fund - current_emergency_fund) * 0.1  # 10% monthly contribution
         
         st.metric(
@@ -206,7 +207,7 @@ def display_metrics_table(metrics: Dict[str, float]) -> None:
         )
         st.metric(
             'Monthly Emergency Fund Allocation',
-            format_currency(monthly_allocation),
+            format_currency(monthly_allocation if monthly_allocation > 0 else 0),
             delta=None,
             help="Recommended monthly contribution to emergency fund"
         )
