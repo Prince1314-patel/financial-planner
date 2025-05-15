@@ -4,12 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import io
-import pdfkit
-import base64
 import pandas as pd
 from typing import Dict, List, Any
 from backend.utils.formatters import format_currency, format_percentage
-import tempfile
 
 def create_allocation_chart(allocations: Dict[str, float]) -> go.Figure:
     """Create a pie chart showing portfolio allocation.
@@ -310,6 +307,25 @@ def display_recommendation_bullets(bullets: List[str]) -> None:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
+def download_excel_report(metrics: Dict[str, float], allocations: Dict[str, float], table_data: List[Dict[str, Any]], bullets: List[str]) -> None:
+    """Generate and provide a download button for the Excel report.
+    
+    Args:
+        metrics: Dictionary of financial metrics
+        allocations: Dictionary of portfolio allocations
+        table_data: List of dictionaries containing allocation details
+        bullets: List of recommendation strings
+    """
+    from backend.utils.excel_generator import generate_financial_report
+    excel_file = generate_financial_report(metrics, allocations, table_data, bullets)
+    st.download_button(
+        label="📊 Download Excel Report",
+        data=excel_file,
+        file_name="financial_analysis.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        help="Download a detailed Excel report of your financial analysis"
+    )
+
 def generate_excel_report(user_input: Dict[str, Any], metrics: Dict[str, float],
                          allocations: Dict[str, float], bullets: List[str]) -> bytes:
     """Generate an Excel report with all numerical data from the financial analysis."""
@@ -385,101 +401,3 @@ def generate_excel_report(user_input: Dict[str, Any], metrics: Dict[str, float],
     # Get the value of the BytesIO buffer
     excel_buffer.seek(0)
     return excel_buffer.getvalue()
-
-def generate_report_pdf(user_input: Dict[str, Any], metrics: Dict[str, float],
-                       allocations: Dict[str, float], bullets: List[str]) -> bytes:
-    """Generate a PDF report of the financial analysis."""
-    from fpdf import FPDF
-    try:
-        # Create temporary files for charts
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as allocation_file, \
-             tempfile.NamedTemporaryFile(suffix='.png', delete=False) as risk_return_file:
-            
-            # Save allocation chart
-            allocation_fig = create_allocation_chart(allocations)
-            allocation_fig.write_image(allocation_file.name)
-            allocation_img_path = allocation_file.name
-            
-            # Save risk-return chart
-            risk_return_fig = create_risk_return_chart(allocations)
-            risk_return_fig.write_image(risk_return_file.name)
-            risk_return_img_path = risk_return_file.name
-            
-            # Get font path
-            font_path = 'backend/ui/NotoSans-Regular.ttf'
-            # Create PDF document
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.add_font('NotoSans', '', font_path, uni=True)
-            
-            # Set default text color to black
-            pdf.set_text_color(0, 0, 0)
-            
-            # Header
-            pdf.set_font('NotoSans', '', 20)
-            pdf.cell(0, 15, 'Your Financial Analysis Report', 0, 1, 'C')
-            pdf.ln(5)
-            
-            # Personal Information Section
-            pdf.set_font('NotoSans', '', 16)
-            pdf.set_fill_color(240, 240, 240)
-            pdf.cell(0, 10, 'Personal Information', 0, 1, 'L', fill=True)
-            pdf.ln(5)
-            
-            pdf.set_font('NotoSans', '', 12)
-            # Create a function for consistent formatting
-            def add_info_row(label, value):
-                pdf.set_font('NotoSans', '', 12)
-                pdf.cell(60, 8, label, 0, 0)
-                pdf.cell(0, 8, str(value), 0, 1)
-            
-            add_info_row('Age:', user_input.get('age', 'N/A'))
-            add_info_row('Monthly Income:', format_currency(user_input.get('salary', 0)))
-            add_info_row('Monthly Expenses:', format_currency(user_input.get('expenses', 0)))
-            add_info_row('Risk Tolerance:', user_input.get('risk_tolerance', 'N/A'))
-            add_info_row('Time Horizon:', user_input.get('time_horizon', 'N/A'))
-            pdf.ln(5)
-            
-            # Financial Metrics Section
-            pdf.set_font('NotoSans', '', 16)
-            pdf.set_fill_color(240, 240, 240)
-            pdf.cell(0, 10, 'Financial Metrics', 0, 1, 'L', fill=True)
-            pdf.ln(5)
-            
-            add_info_row('Investment Capacity:', format_currency(metrics.get('investment_capacity', 0)))
-            add_info_row('Emergency Fund:', format_currency(metrics.get('emergency_fund', 0)))
-            add_info_row('Debt-to-Income:', format_percentage(metrics.get('debt_to_income', 0)))
-            add_info_row('Risk Score:', f"{metrics.get('risk_score', 0)}/10")
-            pdf.ln(5)
-            
-            # Portfolio Allocation Section
-            pdf.set_font('NotoSans', '', 16)
-            pdf.set_fill_color(240, 240, 240)
-            pdf.cell(0, 10, 'Portfolio Allocation', 0, 1, 'L', fill=True)
-            pdf.ln(5)
-            pdf.image(allocation_img_path, x=10, w=190)
-            pdf.ln(10)
-            
-            # Risk vs Return Profile Section
-            pdf.add_page()
-            pdf.set_font('NotoSans', '', 16)
-            pdf.set_fill_color(240, 240, 240)
-            pdf.cell(0, 10, 'Risk vs Return Profile', 0, 1, 'L', fill=True)
-            pdf.ln(5)
-            pdf.image(risk_return_img_path, x=10, w=190)
-            pdf.ln(10)
-            
-            # Investment Recommendations Section
-            pdf.set_font('NotoSans', '', 16)
-            pdf.set_fill_color(240, 240, 240)
-            pdf.cell(0, 10, 'Investment Recommendations', 0, 1, 'L', fill=True)
-            pdf.ln(5)
-            
-            pdf.set_font('NotoSans', '', 12)
-            for bullet in bullets:
-                pdf.multi_cell(0, 8, f"• {bullet}", 0, 'L')
-            
-            return pdf.output(dest='S').encode('utf-8')
-    except Exception as e:
-        st.error(f"Error generating PDF: {str(e)}")
-        return b""

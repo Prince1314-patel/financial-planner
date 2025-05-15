@@ -10,8 +10,8 @@ from backend.ui.visualization import (
     display_metrics_table,
     display_allocation_table,
     display_recommendation_bullets,
-    generate_report_pdf,
-    create_risk_return_chart
+    create_risk_return_chart,
+    download_excel_report
 )
 
 # Load secrets
@@ -260,6 +260,14 @@ def main():
         # Display metrics and recommendations
         display_metrics_table(st.session_state['metrics'])
         
+        # Download Excel Report Button
+        download_excel_report(
+            st.session_state['metrics'],
+            st.session_state['allocations'],
+            st.session_state['table_data'],
+            st.session_state['bullets']
+        )
+        
         # Portfolio Visualization
         st.markdown("<h3 style='color: #ffffff; margin: 2rem 0 1rem;'>Portfolio Visualization</h3>", unsafe_allow_html=True)
         
@@ -304,19 +312,6 @@ def main():
             for step in next_steps:
                 st.markdown(f"<div class='next-step'>{step}</div>", unsafe_allow_html=True)
         
-        # Download PDF Report
-        pdf_report = generate_report_pdf(
-            st.session_state['form_data'],
-            st.session_state['metrics'],
-            st.session_state['allocations'],
-            st.session_state['bullets']
-        )
-        st.download_button(
-            label="Download PDF Report 📄",
-            data=pdf_report,
-            file_name="financial_analysis_report.pdf",
-            mime="application/pdf"
-        )
         
         st.markdown("</div>", unsafe_allow_html=True)
 
