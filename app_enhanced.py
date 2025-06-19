@@ -24,8 +24,21 @@ from backend.ui.auth_components import check_authentication, render_user_menu
 from backend.ui.dashboard import render_dashboard, render_portfolio_comparison
 from backend.services.portfolio_service import PortfolioService
 from backend.services.market_service import MarketService
+from backend.services.enhanced_financial_engine import EnhancedFinancialEngine
+from backend.services.advanced_report_generator import AdvancedReportGenerator
+from backend.ui.enhanced_analysis_components import (
+    render_financial_health_dashboard,
+    render_personalized_insights,
+    render_what_if_scenarios,
+    render_advanced_portfolio_analysis,
+    render_goal_progress_tracker,
+    render_market_context_integration,
+    render_tax_optimization_planner,
+    render_comprehensive_report_generator
+)
 from backend.database.database import SessionLocal
 from backend.services.auth_service import AuthService
+from backend.models.user_profile import UserProfile
 
 load_dotenv()
 
@@ -329,6 +342,38 @@ def render_financial_analysis_page():
             if submit:
                 financial_profile = PortfolioService.save_financial_profile(db, st.session_state['form_data'])
                 st.session_state['current_financial_profile_id'] = financial_profile.id if financial_profile else None
+                
+                # Enhanced financial analysis
+                if financial_profile:
+                    current_user = AuthService.get_current_user()
+                    user_id = current_user['id'] if current_user else 0
+                    
+                    # Create UserProfile object for enhanced analysis
+                    user_profile = UserProfile(
+                        salary=st.session_state['form_data']['salary'],
+                        loans=st.session_state['form_data'].get('loans', 'No'),
+                        expenses=st.session_state['form_data']['expenses'],
+                        age=st.session_state['form_data']['age'],
+                        risk_tolerance=st.session_state['form_data']['risk_tolerance'],
+                        time_horizon=st.session_state['form_data']['time_horizon'],
+                        existing_investments=st.session_state['form_data'].get('existing_investments', ''),
+                        goals=st.session_state['form_data']['goals']
+                    )
+                    
+                    # Calculate enhanced metrics
+                    enhanced_metrics = EnhancedFinancialEngine.calculate_advanced_metrics(
+                        user_profile, db, user_id
+                    )
+                    
+                    # Generate personalized allocation
+                    enhanced_allocations = EnhancedFinancialEngine.generate_personalized_allocation(
+                        user_profile, enhanced_metrics
+                    )
+                    
+                    # Store enhanced data in session
+                    st.session_state['enhanced_metrics'] = enhanced_metrics
+                    st.session_state['enhanced_allocations'] = enhanced_allocations
+                    st.session_state['user_profile_data'] = user_profile.dict()
             
             # Handle navigation
             handle_form_navigation(
@@ -340,17 +385,21 @@ def render_financial_analysis_page():
             
             # Save portfolio if analysis was completed
             if submit and st.session_state.get('ai_result') and st.session_state.get('current_financial_profile_id'):
+                # Use enhanced allocations if available
+                allocations_to_save = st.session_state.get('enhanced_allocations', st.session_state.get('allocations', {}))
+                metrics_to_save = st.session_state.get('enhanced_metrics', st.session_state.get('metrics', {}))
+                
                 portfolio = PortfolioService.save_portfolio(
                     db,
                     st.session_state['current_financial_profile_id'],
-                    st.session_state['allocations'],
-                    st.session_state['metrics'],
+                    allocations_to_save,
+                    metrics_to_save,
                     st.session_state.get('ai_narrative', ''),
                     st.session_state.get('ai_recommendations', ''),
                     st.session_state.get('risk_level', 'Moderate')
                 )
                 if portfolio:
-                    st.success("Portfolio saved successfully! View it in your Dashboard.")
+                    st.success("✅ Enhanced portfolio analysis saved successfully! View it in your Dashboard.")
         
         finally:
             db.close()
@@ -360,63 +409,86 @@ def render_financial_analysis_page():
         st.markdown("""
         <div style='background: linear-gradient(45deg, rgba(75, 86, 210, 0.1), rgba(19, 99, 223, 0.1));
              padding: 2rem; border-radius: 15px; margin: 2rem 0; border: 1px solid rgba(255,255,255,0.1);'>
-        <h2 style='color: #ffffff; margin-bottom: 1.5rem;'>Your Personalized Financial Analysis</h2>
+        <h2 style='color: #ffffff; margin-bottom: 1.5rem;'>🚀 Your Enhanced Financial Analysis</h2>
         """, unsafe_allow_html=True)
         
-        # Display metrics and recommendations
-        display_metrics_table(st.session_state['metrics'])
+        # Use enhanced metrics if available
+        metrics_to_display = st.session_state.get('enhanced_metrics', st.session_state.get('metrics', {}))
+        allocations_to_display = st.session_state.get('enhanced_allocations', st.session_state.get('allocations', {}))
+        user_profile_data = st.session_state.get('user_profile_data', {})
         
-        # Download Excel Report Button
-        download_excel_report(
-            st.session_state['metrics'],
-            st.session_state['allocations'],
-            st.session_state['table_data'],
-            st.session_state['bullets']
-        )
+        # Financial Health Dashboard
+        if metrics_to_display:
+            render_financial_health_dashboard(metrics_to_display)
+            st.markdown("---")
         
-        # Portfolio Visualization
-        st.markdown("<h3 style='color: #ffffff; margin: 2rem 0 1rem;'>Portfolio Visualization</h3>", unsafe_allow_html=True)
+        # Personalized Insights
+        if metrics_to_display and user_profile_data:
+            render_personalized_insights(metrics_to_display, user_profile_data)
+            st.markdown("---")
         
-        # Display plots vertically
-        st.plotly_chart(create_allocation_chart(st.session_state['allocations']), use_container_width=True)
-        st.plotly_chart(create_risk_return_chart(st.session_state['allocations']), use_container_width=True)
+        # What-If Scenarios
+        if metrics_to_display:
+            render_what_if_scenarios(metrics_to_display)
+            st.markdown("---")
         
-        # Display allocation table
-        display_allocation_table(st.session_state['table_data'])
+        # Advanced Portfolio Analysis
+        if allocations_to_display and metrics_to_display:
+            render_advanced_portfolio_analysis(allocations_to_display, metrics_to_display)
+            st.markdown("---")
         
-        # AI Recommendations with dropdown
-        st.markdown("<h3 style='color: #ffffff; margin: 2rem 0 1rem;'>Investment Strategy</h3>", unsafe_allow_html=True)
+        # Goal Progress Tracker
+        if metrics_to_display:
+            render_goal_progress_tracker(metrics_to_display)
+            st.markdown("---")
         
-        with st.expander("🎯 AI Investment Recommendations", expanded=True):
-            display_recommendation_bullets(st.session_state['bullets'])
+        # Market Context Integration
+        render_market_context_integration(metrics_to_display)
+        st.markdown("---")
         
-        # Next Steps with dropdown
-        with st.expander("📋 Next Steps", expanded=True):
-            st.markdown("""
-            <style>
-            .next-step {
-                background: rgba(0,0,0,0.2);
-                padding: 1rem;
-                border-radius: 8px;
-                margin-bottom: 0.5rem;
-                border: 1px solid rgba(255,255,255,0.05);
-            }
-            </style>
-            """, unsafe_allow_html=True)
+        # Tax Optimization Planner
+        if metrics_to_display:
+            render_tax_optimization_planner(metrics_to_display)
+            st.markdown("---")
+        
+        # Traditional displays (for backward compatibility)
+        with st.expander("📊 Traditional Analysis View", expanded=False):
+            # Display traditional metrics
+            if st.session_state.get('metrics'):
+                display_metrics_table(st.session_state['metrics'])
             
-            next_steps = [
-                "1. Review and understand your recommended portfolio allocation",
-                "2. Set up or increase your emergency fund as recommended",
-                "3. Research low-cost index funds/ETFs that match your allocation",
-                "4. Open a trading account if you don't have one",
-                "5. Start implementing the investment plan gradually",
-                "6. Set up automatic monthly investments if possible",
-                "7. Schedule quarterly portfolio reviews",
-                "8. Consider consulting with a tax advisor for tax-efficient investing"
-            ]
+            # Download Excel Report Button
+            if all(key in st.session_state for key in ['metrics', 'allocations', 'table_data', 'bullets']):
+                download_excel_report(
+                    st.session_state['metrics'],
+                    st.session_state['allocations'],
+                    st.session_state['table_data'],
+                    st.session_state['bullets']
+                )
             
-            for step in next_steps:
-                st.markdown(f"<div class='next-step'>{step}</div>", unsafe_allow_html=True)
+            # Traditional Portfolio Visualization
+            if st.session_state.get('allocations'):
+                st.plotly_chart(create_allocation_chart(st.session_state['allocations']), use_container_width=True)
+                st.plotly_chart(create_risk_return_chart(st.session_state['allocations']), use_container_width=True)
+            
+            # Traditional allocation table
+            if st.session_state.get('table_data'):
+                display_allocation_table(st.session_state['table_data'])
+            
+            # AI Recommendations
+            if st.session_state.get('bullets'):
+                with st.expander("🎯 AI Investment Recommendations", expanded=False):
+                    display_recommendation_bullets(st.session_state['bullets'])
+        
+        # Comprehensive Report Generator
+        if metrics_to_display and allocations_to_display and user_profile_data:
+            st.markdown("---")
+            render_comprehensive_report_generator(
+                metrics_to_display, 
+                allocations_to_display, 
+                {"narrative": st.session_state.get('ai_narrative', ''), "recommendations": st.session_state.get('ai_recommendations', '')},
+                user_profile_data
+            )
         
         st.markdown("</div>", unsafe_allow_html=True)
 
