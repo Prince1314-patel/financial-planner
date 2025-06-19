@@ -357,7 +357,8 @@ def render_financial_analysis_page():
                         risk_tolerance=st.session_state['form_data']['risk_tolerance'],
                         time_horizon=st.session_state['form_data']['time_horizon'],
                         existing_investments=st.session_state['form_data'].get('existing_investments', ''),
-                        goals=st.session_state['form_data']['goals']
+                        goals=st.session_state['form_data']['goals'],
+                        emergency_fund=st.session_state['form_data'].get('emergency_fund', 0.0)
                     )
                     
                     # Calculate enhanced metrics

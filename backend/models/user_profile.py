@@ -27,6 +27,7 @@ class UserProfile(BaseModel):
     time_horizon: TimeHorizon = Field(..., description="Investment time horizon")
     existing_investments: Optional[str] = Field(None, description="Optional details about existing investments")
     goals: str = Field(..., min_length=1, description="Financial goals like retirement, education, etc.")
+    emergency_fund: float = Field(0, ge=0, description="Current emergency fund amount in INR")
 
     @validator('loans')
     def validate_loans(cls, v):
