@@ -8,13 +8,15 @@ from datetime import datetime, timedelta
 import json
 
 class MarketService:
-    # Popular ETFs and indices for portfolio tracking
+    # Indian market symbols for portfolio tracking
     DEFAULT_SYMBOLS = {
-        'stocks': ['SPY', 'VTI', 'VXUS', 'VEA', 'VWO'],  # US & International stocks
-        'bonds': ['BND', 'VGIT', 'VGLT', 'VTEB'],        # Bonds
-        'commodities': ['GLD', 'SLV', 'VNQ'],            # Gold, Silver, REITs
-        'crypto': ['BTC-USD', 'ETH-USD'],                # Major crypto
-        'indian_etfs': ['INFY', 'TCS.NS', 'RELIANCE.NS'] # Indian stocks
+        'indices': ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT'],  # Nifty 50, Sensex, Bank Nifty, IT Index
+        'large_cap': ['RELIANCE.NS', 'TCS.NS', 'HDFC.NS', 'INFY.NS', 'ICICIBANK.NS', 'HDFCBANK.NS', 'ITC.NS', 'KOTAKBANK.NS', 'LT.NS', 'AXISBANK.NS'],
+        'mid_cap': ['ADANIPORTS.NS', 'BAJFINANCE.NS', 'HCLTECH.NS', 'MARUTI.NS', 'NESTLEIND.NS'],
+        'etfs': ['NIFTYBEES.NS', 'BANKBEES.NS', 'ITBEES.NS', 'GOLDSHARE.NS'],  # Indian ETFs
+        'commodities': ['GOLD.NS', 'SILVER.NS'],            # Gold, Silver on Indian exchanges
+        'crypto': ['BTC-USD', 'ETH-USD'],                   # Major crypto
+        'bonds': ['LIQUIDBEES.NS', 'CPSEETF.NS']            # Liquid and CPSE bond ETFs
     }
     
     @staticmethod
@@ -105,16 +107,20 @@ class MarketService:
     @staticmethod
     def _classify_asset(symbol: str) -> str:
         """Classify asset type based on symbol"""
-        if symbol in MarketService.DEFAULT_SYMBOLS['stocks']:
-            return 'stocks'
+        if symbol in MarketService.DEFAULT_SYMBOLS['indices']:
+            return 'indices'
+        elif symbol in MarketService.DEFAULT_SYMBOLS['large_cap']:
+            return 'large_cap_stocks'
+        elif symbol in MarketService.DEFAULT_SYMBOLS['mid_cap']:
+            return 'mid_cap_stocks'
+        elif symbol in MarketService.DEFAULT_SYMBOLS['etfs']:
+            return 'etfs'
         elif symbol in MarketService.DEFAULT_SYMBOLS['bonds']:
             return 'bonds'
         elif symbol in MarketService.DEFAULT_SYMBOLS['commodities']:
             return 'commodities'
         elif symbol in MarketService.DEFAULT_SYMBOLS['crypto']:
             return 'crypto'
-        elif symbol in MarketService.DEFAULT_SYMBOLS['indian_etfs']:
-            return 'indian_stocks'
         else:
             return 'unknown'
     

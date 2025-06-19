@@ -236,7 +236,8 @@ class EnhancedFinancialEngine:
             "emergency": ["emergency", "fund", "safety"],
             "business": ["business", "startup", "entrepreneur"],
             "marriage": ["marriage", "wedding", "family"],
-            "children": ["children", "kids", "child"]
+            "children": ["children", "kids", "child"],
+            "car": ["car", "vehicle", "automobile", "bike", "motorcycle"]
         }
         
         for goal_type, keywords in goal_patterns.items():
@@ -271,6 +272,15 @@ class EnhancedFinancialEngine:
                     "timeline": f"{edu_timeline} years",
                     "monthly_investment": disposable_income * 0.25,
                     "strategy": "Moderate growth with education-specific funds"
+                })
+            
+            elif goal == "car":
+                car_timeline = 2 if disposable_income > 15000 else 3
+                recommendations.append({
+                    "goal": "Car Purchase",
+                    "timeline": f"{car_timeline} years",
+                    "monthly_investment": disposable_income * 0.4,
+                    "strategy": "Liquid funds and short-term debt funds"
                 })
         
         return {

@@ -245,8 +245,28 @@ def render_market_overview(db):
         st.error(f"Error loading market data: {str(e)}")
 
 def render_portfolio_comparison():
-    """Render portfolio comparison tool"""
-    st.subheader("📊 Portfolio Comparison")
+    """Enhanced portfolio comparison tool with detailed analysis"""
+    st.title("📊 Portfolio Comparison")
+    
+    # Instructions for users
+    with st.expander("ℹ️ How to Use Portfolio Comparison", expanded=False):
+        st.markdown("""
+        **Portfolio Comparison helps you:**
+        - **Track Your Evolution:** See how your investment strategy has changed over time
+        - **Compare Scenarios:** Analyze different risk profiles or financial situations
+        - **Make Better Decisions:** Understand the impact of different allocation strategies
+        
+        **How to Use:**
+        1. Select 2-4 portfolios from your history
+        2. View side-by-side comparisons of allocations and metrics
+        3. Analyze the differences in investment capacity and risk levels
+        4. Use insights to refine your current strategy
+        
+        **Best Practices:**
+        - Compare portfolios from different time periods to see evolution
+        - Compare portfolios with different risk tolerances to understand trade-offs
+        - Look for patterns in successful allocations
+        """)
     
     db = SessionLocal()
     
@@ -254,19 +274,27 @@ def render_portfolio_comparison():
         portfolios = PortfolioService.get_user_portfolios(db, limit=20)
         
         if len(portfolios) < 2:
-            st.info("You need at least 2 portfolios to compare.")
+            st.warning("⚠️ You need at least 2 portfolios to use comparison feature.")
+            st.info("💡 Create more portfolio analyses with different parameters to see meaningful comparisons!")
             return
         
-        # Select portfolios to compare
-        portfolio_options = {
-            f"{p.created_at.strftime('%Y-%m-%d %H:%M')} - {p.risk_level}": p.id 
-            for p in portfolios
-        }
+        st.success(f"✅ Found {len(portfolios)} portfolios available for comparison")
+        
+        # Portfolio selection with better display
+        st.subheader("📋 Select Portfolios to Compare")
+        
+        portfolio_options = {}
+        for p in portfolios:
+            date_str = p.created_at.strftime('%Y-%m-%d %H:%M')
+            investment_capacity = p.metrics.get('investment_capacity', 0)
+            display_name = f"{date_str} | {p.risk_level} Risk | ₹{investment_capacity:,.0f} Capacity"
+            portfolio_options[display_name] = p.id
         
         selected_portfolios = st.multiselect(
-            "Select portfolios to compare (max 4):",
+            "Choose portfolios to compare (2-4 recommended):",
             options=list(portfolio_options.keys()),
-            max_selections=4
+            max_selections=4,
+            help="Select portfolios from different dates or with different risk profiles for meaningful comparison"
         )
         
         if len(selected_portfolios) >= 2:
@@ -274,47 +302,162 @@ def render_portfolio_comparison():
             comparison_data = PortfolioService.get_portfolio_comparison(db, selected_ids)
             
             if comparison_data:
-                # Create comparison visualization
-                fig = make_subplots(
-                    rows=2, cols=2,
-                    subplot_titles=('Asset Allocation Comparison', 'Risk Level Comparison', 
-                                   'Investment Capacity', 'Savings Ratio'),
-                    specs=[[{"type": "bar"}, {"type": "bar"}],
-                           [{"type": "bar"}, {"type": "bar"}]]
-                )
+                st.markdown("---")
+                
+                # Quick metrics comparison
+                st.subheader("🎯 Quick Metrics Comparison")
+                
+                metrics_cols = st.columns(len(comparison_data))
+                for idx, data in enumerate(comparison_data):
+                    with metrics_cols[idx]:
+                        date_str = data['created_at'].strftime('%m/%d/%Y')
+                        st.markdown(f"**Portfolio {idx + 1}**")
+                        st.markdown(f"📅 {date_str}")
+                        st.metric("Investment Capacity", f"₹{data['metrics'].get('investment_capacity', 0):,.0f}")
+                        st.metric("Risk Level", data['risk_level'])
+                        st.metric("Savings Rate", f"{data['metrics'].get('monthly_savings_ratio', 0):.1f}%")
+                
+                # Detailed visualizations
+                st.subheader("📈 Detailed Analysis")
                 
                 # Asset allocation comparison
+                st.markdown("**Asset Allocation Comparison**")
+                
+                # Create side-by-side pie charts
+                pie_cols = st.columns(len(comparison_data))
+                for idx, data in enumerate(comparison_data):
+                    with pie_cols[idx]:
+                        allocations = data['allocations']
+                        fig = px.pie(
+                            values=list(allocations.values()),
+                            names=list(allocations.keys()),
+                            title=f"Portfolio {idx + 1}<br>{data['created_at'].strftime('%m/%d/%Y')}"
+                        )
+                        fig.update_layout(
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            font=dict(color='white', size=10),
+                            height=400
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Bar chart comparison
+                st.markdown("**Side-by-Side Allocation Comparison**")
+                
+                # Prepare data for grouped bar chart
+                all_assets = set()
                 for data in comparison_data:
-                    date_str = data['created_at'].strftime('%Y-%m-%d')
-                    allocations = data['allocations']
-                    
-                    fig.add_trace(
-                        go.Bar(x=list(allocations.keys()), y=list(allocations.values()),
-                               name=date_str, showlegend=True),
-                        row=1, col=1
+                    all_assets.update(data['allocations'].keys())
+                
+                comparison_df = []
+                for idx, data in enumerate(comparison_data):
+                    portfolio_name = f"Portfolio {idx + 1} ({data['created_at'].strftime('%m/%d')})"
+                    for asset in all_assets:
+                        allocation = data['allocations'].get(asset, 0)
+                        comparison_df.append({
+                            'Portfolio': portfolio_name,
+                            'Asset Class': asset,
+                            'Allocation %': allocation
+                        })
+                
+                df = pd.DataFrame(comparison_df)
+                
+                if not df.empty:
+                    fig = px.bar(
+                        df, 
+                        x='Asset Class', 
+                        y='Allocation %', 
+                        color='Portfolio',
+                        barmode='group',
+                        title="Asset Allocation Comparison",
+                        text='Allocation %'
                     )
+                    fig.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        height=500
+                    )
+                    fig.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                    st.plotly_chart(fig, use_container_width=True)
                 
-                fig.update_layout(
-                    height=600,
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='white')
-                )
+                # Investment capacity trend
+                st.markdown("**Investment Capacity Trend**")
+                capacity_data = [
+                    {
+                        'Date': data['created_at'].strftime('%Y-%m-%d'),
+                        'Investment Capacity': data['metrics'].get('investment_capacity', 0),
+                        'Risk Level': data['risk_level']
+                    }
+                    for data in sorted(comparison_data, key=lambda x: x['created_at'])
+                ]
                 
-                st.plotly_chart(fig, use_container_width=True)
+                if len(capacity_data) > 1:
+                    df_capacity = pd.DataFrame(capacity_data)
+                    fig = px.line(
+                        df_capacity, 
+                        x='Date', 
+                        y='Investment Capacity',
+                        color='Risk Level',
+                        markers=True,
+                        title="Investment Capacity Over Time"
+                    )
+                    fig.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white')
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
                 
-                # Summary table
-                st.markdown("**Comparison Summary:**")
+                # Detailed comparison table
+                st.subheader("📋 Detailed Comparison Table")
                 summary_data = []
-                for data in comparison_data:
+                for idx, data in enumerate(comparison_data):
                     summary_data.append({
+                        'Portfolio': f"Portfolio {idx + 1}",
                         'Date': data['created_at'].strftime('%Y-%m-%d %H:%M'),
                         'Risk Level': data['risk_level'],
                         'Investment Capacity': f"₹{data['metrics'].get('investment_capacity', 0):,.0f}",
-                        'Savings Ratio': f"{data['metrics'].get('monthly_savings_ratio', 0):.1f}%"
+                        'Savings Ratio': f"{data['metrics'].get('monthly_savings_ratio', 0):.1f}%",
+                        'Health Score': f"{data['metrics'].get('health_score', 0):.0f}/100" if data['metrics'].get('health_score') else "N/A"
                     })
                 
-                st.dataframe(pd.DataFrame(summary_data), use_container_width=True)
+                df_summary = pd.DataFrame(summary_data)
+                st.dataframe(df_summary, use_container_width=True)
+                
+                # Insights and recommendations
+                st.subheader("💡 Comparison Insights")
+                
+                # Calculate insights
+                capacities = [data['metrics'].get('investment_capacity', 0) for data in comparison_data]
+                risk_levels = [data['risk_level'] for data in comparison_data]
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Key Observations:**")
+                    if len(set(capacities)) > 1:
+                        max_capacity = max(capacities)
+                        min_capacity = min(capacities)
+                        change_percent = ((max_capacity - min_capacity) / min_capacity * 100) if min_capacity > 0 else 0
+                        st.write(f"📈 Investment capacity varies by ₹{max_capacity - min_capacity:,.0f} ({change_percent:.1f}%)")
+                    
+                    if len(set(risk_levels)) > 1:
+                        st.write("⚖️ Different risk levels show varying allocation strategies")
+                    else:
+                        st.write("🎯 Consistent risk level across all portfolios")
+                
+                with col2:
+                    st.markdown("**Recommendations:**")
+                    st.write("🔄 Compare portfolios over time to track your financial growth")
+                    st.write("⚖️ Analyze risk vs. capacity trade-offs")
+                    st.write("📊 Use allocation differences to fine-tune current strategy")
+        
+        elif len(selected_portfolios) == 1:
+            st.info("Please select at least 2 portfolios to compare.")
+        
+        else:
+            st.info("Select portfolios above to start comparison analysis.")
     
     finally:
         db.close()
