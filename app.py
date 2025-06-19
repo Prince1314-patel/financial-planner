@@ -12,14 +12,7 @@ except Exception as e:
 from backend.ui.session_state import initialize_session_state
 from backend.ui.form_navigation import get_form_steps, handle_form_navigation
 from backend.ui.loan_handler import render_loan_section
-from backend.ui.visualization import (
-    create_allocation_chart,
-    display_metrics_table,
-    display_allocation_table,
-    display_recommendation_bullets,
-    create_risk_return_chart,
-    download_excel_report
-)
+# Traditional visualization imports removed - using enhanced components only
 from backend.ui.auth_components import check_authentication, render_user_menu
 from backend.ui.dashboard import render_dashboard, render_portfolio_comparison
 from backend.services.portfolio_service import PortfolioService
@@ -374,7 +367,7 @@ def render_financial_analysis_page():
                     # Store enhanced data in session
                     st.session_state['enhanced_metrics'] = enhanced_metrics
                     st.session_state['enhanced_allocations'] = enhanced_allocations
-                    st.session_state['user_profile_data'] = user_profile.dict()
+                    st.session_state['user_profile_data'] = user_profile.model_dump()
             
             # Handle navigation
             handle_form_navigation(
@@ -452,34 +445,7 @@ def render_financial_analysis_page():
             render_tax_optimization_planner(metrics_to_display)
             st.markdown("---")
         
-        # Traditional displays (for backward compatibility)
-        with st.expander("📊 Traditional Analysis View", expanded=False):
-            # Display traditional metrics
-            if st.session_state.get('metrics'):
-                display_metrics_table(st.session_state['metrics'])
-            
-            # Download Excel Report Button
-            if all(key in st.session_state for key in ['metrics', 'allocations', 'table_data', 'bullets']):
-                download_excel_report(
-                    st.session_state['metrics'],
-                    st.session_state['allocations'],
-                    st.session_state['table_data'],
-                    st.session_state['bullets']
-                )
-            
-            # Traditional Portfolio Visualization
-            if st.session_state.get('allocations'):
-                st.plotly_chart(create_allocation_chart(st.session_state['allocations']), use_container_width=True)
-                st.plotly_chart(create_risk_return_chart(st.session_state['allocations']), use_container_width=True)
-            
-            # Traditional allocation table
-            if st.session_state.get('table_data'):
-                display_allocation_table(st.session_state['table_data'])
-            
-            # AI Recommendations
-            if st.session_state.get('bullets'):
-                with st.expander("🎯 AI Investment Recommendations", expanded=False):
-                    display_recommendation_bullets(st.session_state['bullets'])
+
         
         # Comprehensive Report Generator
         if metrics_to_display and allocations_to_display and user_profile_data:
